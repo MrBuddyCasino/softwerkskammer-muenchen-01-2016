@@ -1,8 +1,6 @@
 package shoppinglist.services;
 
-import static java.util.Collections.emptyList;
-
-import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -14,22 +12,31 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
+import shoppinglist.commands.AddItemCmd;
+import shoppinglist.commands.ClearListCmd;
+import shoppinglist.commands.StrikeItemCmd;
+import shoppinglist.commands.UndoCmd;
+import shoppinglist.model.NumerableItem;
 import shoppinglist.services.dto.ItemDto;
 
 /**
  * Implements the exposed REST endpoints for the shopping list service.
- * 
+ *
  * <p>
  * This is the starting point for implementing the service.
- * 
+ *
  * @author Bradford Hovinen <hovinen@gmail.com>
  */
 @ApplicationScoped
 @Path("/shopping-list")
 public final class ShoppingListService {
 
+    private final CommandExecutorService executor;
+
     @Inject
-    ShoppingListService() {}
+    ShoppingListService(CommandExecutorService executor) {
+        this.executor = executor;
+    }
 
     /**
      * Returns the entire current shopping list.
@@ -37,12 +44,17 @@ public final class ShoppingListService {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public List<ItemDto> getWholeList() {
-        return emptyList();
+        List<ItemDto> wholeList = new ArrayList<>(executor.getShoppingList().getAllItems().size());
+        for(NumerableItem item : executor.getShoppingList().getAllItems())
+        {
+          wholeList.add(new ItemDto(item.getName(), item.getAmount(), item.getUnitKey(), item.isStricken()));
+        }
+        return wholeList;
     }
 
     /**
      * Adds an item to the shopping list.
-     * 
+     *
      * @param articleName
      *            the name of the article
      * @param amount
@@ -55,9 +67,9 @@ public final class ShoppingListService {
     @Path("/add")
     public void addItem(
             @QueryParam("name") String articleName,
-            @QueryParam("amount") BigDecimal amount,
+            @QueryParam("amount") int amount,
             @QueryParam("unit") String unitKey) {
-        throw new UnsupportedOperationException("Not yet implemented");
+    	executor.execute(new AddItemCmd(articleName, amount, unitKey));
     }
 
     /**
@@ -68,7 +80,7 @@ public final class ShoppingListService {
     public void strikeItem(
             @QueryParam("article") String articleName,
             @QueryParam("unit") String unitKey) {
-        throw new UnsupportedOperationException("Not yet implemented");
+        executor.execute(new StrikeItemCmd(articleName, unitKey));
     }
 
     /**
@@ -77,7 +89,7 @@ public final class ShoppingListService {
     @PUT
     @Path("/clear")
     public void clearList() {
-        throw new UnsupportedOperationException("Not yet implemented");
+        executor.execute(new ClearListCmd());
     }
 
     /**
@@ -86,6 +98,6 @@ public final class ShoppingListService {
     @PUT
     @Path("/undo")
     public void undoLastAction() {
-        throw new UnsupportedOperationException("Not yet implemented");
+        executor.execute(new UndoCmd());
     }
 }
